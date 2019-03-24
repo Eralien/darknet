@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
+#include <time.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -221,6 +222,14 @@ void draw_bbox(image a, box bbox, int w, float r, float g, float b)
     }
 }
 
+void give_timestamp(FILE *out_file){
+    time_t rawtime;
+    struct tm * timeinfo;
+    time(&rawtime);
+    timeinfo = localtime ( &rawtime );
+    fprintf(out_file, "NEW %s", asctime(timeinfo));
+}
+
 image **load_alphabet()
 {
     int i, j;
@@ -237,16 +246,16 @@ image **load_alphabet()
     return alphabets;
 }
 
-void draw_detections(image im, detection *dets, int num, float thresh, char **names, image **alphabet, int classes)
+void draw_detections(image im, detection *dets, int num, \
+float thresh, char **names, image **alphabet, int classes)
 {
     int i,j;
 
     //output to a file
-    FILE *out_fd = fopen("prediction_info.txt", "a");
-    if (out_fd == NULL){
-        fprintf(stderr, "Cannot open prediction_info file.\n");
-        return 1;
-    }
+    FILE *out_fd = fopen("./prediction_info.txt", "a");
+    // File established   
+    give_timestamp(out_fd);  
+    printf("num = %d, classes = %d \n", num, classes);
 
     for(i = 0; i < num; ++i){
         char labelstr[4096] = {0};
@@ -261,6 +270,7 @@ void draw_detections(image im, detection *dets, int num, float thresh, char **na
                     strcat(labelstr, names[j]);
                 }
                 printf("%s: %.0f%%\n", names[j], dets[i].prob[j]*100);
+                fprintf(out_fd, "%s %.6f\n", names[j], dets[i].prob[j]);
             }
         }
         if(class >= 0){
@@ -298,6 +308,7 @@ void draw_detections(image im, detection *dets, int num, float thresh, char **na
             if(top < 0) top = 0;
             if(bot > im.h-1) bot = im.h-1;
 
+            fprintf(out_fd, "left: %d; right: %d; top: %d; bottom: %d;\n", left, right, top, bot);
             draw_box_width(im, left, top, right, bot, width, red, green, blue);
             if (alphabet) {
                 image label = get_label(alphabet, labelstr, (im.h*.03));
@@ -315,6 +326,8 @@ void draw_detections(image im, detection *dets, int num, float thresh, char **na
             }
         }
     }
+
+    fclose(out_fd);
 }
 
 void transpose_image(image im)
